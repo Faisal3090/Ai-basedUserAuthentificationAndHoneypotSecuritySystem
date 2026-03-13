@@ -1,0 +1,15 @@
+{
+  "_id": "69adc91719f569614e927985",
+  "username": "admin",
+  "password": "admin123",
+  "role": "admin",
+  "loginCount": 23,
+  "createdAt": "2026-03-08T19:08:07.246Z",
+  "updatedAt": "2026-03-09T15:17:34.678Z",
+  "__v": 0,
+  "accountLocked": true,
+  "failedAttempts": 0,
+  "lockTime": "2026-03-09T15:17:34.677Z",
+  "unlockAt": "2026-03-09T15:27:34.677Z",
+  "lockReason": null
+}

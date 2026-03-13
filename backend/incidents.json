@@ -1,0 +1,17 @@
+[
+  {
+    "score": 0.71,
+    "reason": "High-risk behavioral anomaly detected",
+    "time": "2026-03-09T15:17:34.682Z"
+  },
+  {
+    "score": 0.85,
+    "reason": "Headless browser configuration · Bot-speed form submission",
+    "time": "2026-03-09T12:33:45.278Z"
+  },
+  {
+    "score": 0.897,
+    "reason": "High-risk behavioral anomaly detected",
+    "time": "2026-03-08T19:49:13.265Z"
+  }
+]

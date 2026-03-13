@@ -1,0 +1,62 @@
+[
+  {
+    "u": "admin",
+    "hp": false,
+    "score": 0.239,
+    "reason": "Normal behavior"
+  },
+  {
+    "u": "admin",
+    "hp": true,
+    "score": 0.713,
+    "reason": "Behavioral anomaly detected by AI Model"
+  },
+  {
+    "u": "admin",
+    "hp": false,
+    "score": 0.281,
+    "reason": "Normal behavior"
+  },
+  {
+    "u": "admin",
+    "hp": true,
+    "score": 0.836,
+    "reason": "Behavioral anomaly detected by AI Model"
+  },
+  {
+    "u": "admin",
+    "hp": false,
+    "score": 0.118,
+    "reason": "Normal behavior"
+  },
+  {
+    "u": "admin",
+    "hp": false,
+    "score": 0.5,
+    "reason": "Normal behavior"
+  },
+  {
+    "u": "admin",
+    "hp": false,
+    "score": 0.3,
+    "reason": "Building baseline... "
+  },
+  {
+    "u": "admin",
+    "hp": false,
+    "score": 0.3,
+    "reason": "Building baseline... "
+  },
+  {
+    "u": "admin",
+    "hp": false,
+    "score": 0.3,
+    "reason": "Building baseline... "
+  },
+  {
+    "u": "admin",
+    "hp": true,
+    "score": 0.85,
+    "reason": "Headless browser configuration · Zero mouse movement · Bot-speed form submission"
+  }
+]
