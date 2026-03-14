@@ -125,11 +125,13 @@ export async function collectAttackMeta(behaviorState) {
     const cities = ["Moscow", "Beijing", "Frankfurt", "Bucharest", "Kyiv"];
     const countries = ["Russia", "China", "Germany", "Romania", "Ukraine"];
     const codes = ["RU", "CN", "DE", "RO", "UA"];
+    const lats = [55.75, 39.90, 50.11, 44.43, 50.45];
+    const lngs = [37.62, 116.39, 8.68, 26.10, 30.52];
 
     return {
         ...real,
         ip,
-        geo: { ip, city: cities[i], region: "", country: countries[i], countryCode: codes[i], org: "AS12345 Unknown VPS Provider", lat: 0, lng: 0, source: "simulated" },
+        geo: { ip, city: cities[i], region: "", country: countries[i], countryCode: codes[i], org: "AS12345 Unknown VPS Provider", lat: lats[i], lng: lngs[i], source: "simulated" },
         browser: ["curl/7.68.0", "python-requests/2.28", "Scrapy/2.6", "Go-http-client/1.1"][Math.floor(Math.random() * 4)],
         os: "Linux x86_64",
         device: "Unknown/Headless",

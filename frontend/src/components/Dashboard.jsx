@@ -87,6 +87,14 @@ export default function Dashboard({ currentUser, role, onLogout, onOpenSOC }) {
                     {role === "admin" && (
                         <button onClick={onOpenSOC} style={{ background: "rgba(250,82,82,0.1)", border: "1px solid #fa5252", color: "#fa5252", padding: "4px 11px", cursor: "pointer", fontSize: 8, fontFamily: "'Courier New',monospace", fontWeight: "bold" }}>SOC DASHBOARD</button>
                     )}
+                    {role === "admin" && (
+                        <button onClick={() => {
+                            fetch('/api/auth/unlock-all', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+                                .then(r => r.json())
+                                .then(() => alert('✓ All accounts unlocked'))
+                                .catch(() => alert('✗ Unlock failed — check backend'));
+                        }} style={{ background: "rgba(0,255,100,0.07)", border: "1px solid #1a5a3a", color: "#00cc50", padding: "4px 11px", cursor: "pointer", fontSize: 8, fontFamily: "'Courier New',monospace" }}>UNLOCK ALL</button>
+                    )}
                     <button onClick={onLogout} style={{ background: "transparent", border: "1px solid #1a3a2a", color: "#4a7a5a", padding: "4px 11px", cursor: "pointer", fontSize: 8, fontFamily: "'Courier New',monospace" }}>LOGOUT</button>
                 </div>
             </div>
