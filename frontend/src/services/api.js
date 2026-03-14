@@ -53,6 +53,12 @@ export const api = {
         return res.json();
     },
 
+    getLoginAnalytics: async () => {
+        const res = await fetch(`${API_BASE}/login-analytics`);
+        if (!res.ok) throw new Error('Failed to load login analytics');
+        return res.json();
+    },
+
     getSecurityStats: async () => {
         const [attacks, timeline, countries, asn, recent] = await Promise.all([
             fetch(`${API_BASE}/security/attacks`).then(r => r.json()),

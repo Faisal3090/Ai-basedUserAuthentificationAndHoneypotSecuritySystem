@@ -1,54 +1,131 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from "react-router-dom";
 import Login from "./components/Login";
-import Dashboard from "./components/Dashboard";
-import Honeypot from "./components/Honeypot";
-import SecurityDashboard from "./components/SecurityDashboard";
+import Dashboard from "./components/Dashboard"; // Original Session Monitoring Dashboard
+import SecurityDashboard from "./components/SecurityDashboard"; // Original SOC Dashboard
 
-export default function App() {
-  const [view, setView] = useState("login"); // login | dashboard | honeypot
+// Hospital Components
+import HospitalLayout from "./components/hospital/HospitalLayout";
+import HospitalHome from "./components/hospital/HospitalHome";
+import HospitalPatients from "./components/hospital/HospitalPatients";
+import HospitalAppointments from "./components/hospital/HospitalAppointments";
+import HospitalRecords from "./components/hospital/HospitalRecords";
+import HospitalBilling from "./components/hospital/HospitalBilling";
+
+// Honeypot Components
+import HoneypotLayout from "./components/honeypot/HoneypotLayout";
+import HoneypotAdmin from "./components/honeypot/HoneypotAdmin";
+import HoneypotPatients from "./components/honeypot/HoneypotPatients";
+import HoneypotAppointments from "./components/honeypot/HoneypotAppointments";
+import HoneypotRecords from "./components/honeypot/HoneypotRecords";
+import HoneypotBilling from "./components/honeypot/HoneypotBilling";
+
+function AppContent() {
   const [session, setSession] = useState(null);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLoginComplete = (response) => {
     setSession(response);
     if (response.isHoneypot) {
-      setView("honeypot");
+      navigate("/honeypot/home");
     } else {
-      setView("dashboard");
+      navigate("/hospital/home");
     }
   };
 
   const handleLogout = () => {
-    setView("login");
     setSession(null);
+    navigate("/login");
   };
 
-  if (view === "login") {
-    return <Login onLoginComplete={handleLoginComplete} />;
-  }
+  // Protective Redirects
+  useEffect(() => {
+    const publicPaths = ["/login"];
+    const isPublic = publicPaths.includes(location.pathname);
+    
+    if (!session && !isPublic) {
+      navigate("/login");
+    }
 
-  if (view === "honeypot" && session) {
-    // For honeypot, user thinks they successfully logged in. 
-    // The response includes the username they attempted.
-    return <Honeypot
-      hpUser={session.analysis?.username || "admin"}
-      sessionId={session.sessionId}
-      onLogout={handleLogout}
-    />;
-  }
+    if (session && isPublic) {
+      if (session.isHoneypot) navigate("/honeypot/home");
+      else navigate("/hospital/home");
+    }
+  }, [session, location.pathname, navigate]);
 
-  if (view === "dashboard" && session) {
-    return <Dashboard
-      currentUser={session.user?.username}
-      role={session.user?.role}
-      onLogout={handleLogout}
-      onOpenSOC={() => setView("soc")}
-    />;
-  }
+  return (
+    <Routes>
+      <Route path="/login" element={<Login onLoginComplete={handleLoginComplete} />} />
+      
+      {/* Legitimate Hospital Portal */}
+      <Route 
+        path="/hospital/*" 
+        element={
+          <HospitalLayout onLogout={handleLogout}>
+            <Routes>
+              <Route path="home" element={<HospitalHome />} />
+              <Route path="patients" element={<HospitalPatients />} />
+              <Route path="appointments" element={<HospitalAppointments />} />
+              <Route path="records" element={<HospitalRecords />} />
+              <Route path="billing" element={<HospitalBilling />} />
+              <Route path="*" element={<Navigate to="home" replace />} />
+            </Routes>
+          </HospitalLayout>
+        } 
+      />
 
-  if (view === "soc") {
-    return <SecurityDashboard onLogout={() => setView(session ? "dashboard" : "login")} />;
-  }
+      {/* Security Dashboard - accessible via link in Hospital Portal */}
+      <Route 
+        path="/security-dashboard" 
+        element={
+          <Dashboard 
+            currentUser={session?.user?.username} 
+            role={session?.user?.role} 
+            onLogout={handleLogout}
+            onOpenSOC={() => navigate("/soc-dashboard")}
+          />
+        } 
+      />
 
-  // Fallback
-  return <Login onLoginComplete={handleLoginComplete} />;
+      {/* SOC Dashboard */}
+      <Route 
+        path="/soc-dashboard" 
+        element={<SecurityDashboard onLogout={() => navigate("/security-dashboard")} />} 
+      />
+
+      {/* Mirrored Honeypot Admin Portal */}
+      <Route 
+        path="/honeypot/*" 
+        element={
+          <HoneypotLayout 
+            sessionId={session?.sessionId} 
+            hpUser={session?.analysis?.username || "admin"} 
+            onLogout={handleLogout}
+          >
+            <Routes>
+              <Route path="home" element={<HoneypotAdmin sessionId={session?.sessionId} />} />
+              <Route path="patients" element={<HoneypotPatients sessionId={session?.sessionId} />} />
+              <Route path="appointments" element={<HoneypotAppointments sessionId={session?.sessionId} />} />
+              <Route path="records" element={<HoneypotRecords sessionId={session?.sessionId} />} />
+              <Route path="billing" element={<HoneypotBilling sessionId={session?.sessionId} />} />
+              <Route path="*" element={<Navigate to="home" replace />} />
+            </Routes>
+          </HoneypotLayout>
+        } 
+      />
+
+      {/* Root redirect */}
+      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
+  );
+}
+
+export default function App() {
+  return (
+    <Router>
+      <AppContent />
+    </Router>
+  );
 }

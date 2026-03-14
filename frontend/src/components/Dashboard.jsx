@@ -1,16 +1,57 @@
 import { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import DevicePreview from './DevicePreview';
+import { parseBrowser, parseOS, parseDevice, getScreen, getHardware, getTZ, getCanvasFingerprint } from '../services/deviceFingerprint';
+import LoginSessionChart from './LoginSessionChart';
+import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
 
 export default function Dashboard({ currentUser, role, onLogout, onOpenSOC }) {
     const [tab, setTab] = useState("overview");
     const [sessions, setSessions] = useState([]);
     const [hpLogs, setHpLogs] = useState([]);
     const [selSess, setSelSess] = useState(null);
+    const [attacks, setAttacks] = useState([]);
+
+    // Live Preview State (moved from Login)
+    const [preview, setPreview] = useState(null);
+    const [ipStatus, setIpStatus] = useState("fetching");
 
     useEffect(() => {
         // Load data from backend
         api.getSessions().then(setSessions).catch(console.error);
         api.getHoneypotLogs().then(setHpLogs).catch(console.error);
+        fetch('/api/security/attacks').then(r => r.json()).then(setAttacks).catch(console.error);
+
+        // Live Data Collection
+        const ua = navigator.userAgent, scr = getScreen(), tz = getTZ(), hw = getHardware(), fp = getCanvasFingerprint();
+        setPreview({
+            browser: parseBrowser(ua), os: parseOS(ua), device: parseDevice(ua),
+            screen: `${scr.width}×${scr.height}`, pixelRatio: `${scr.pixelRatio}x DPR`,
+            colorDepth: `${scr.colorDepth}-bit`, orientation: scr.orientation,
+            timezone: tz.name, tzOffset: `UTC${tz.offset <= 0 ? "+" : "-"}${Math.abs(tz.offset / 60)}`,
+            fingerprint: fp, platform: hw.platform, cpuCores: String(hw.cpuCores),
+            deviceMemory: hw.deviceMemory, languages: hw.languages,
+            touch: navigator.maxTouchPoints > 0 ? `Yes (${navigator.maxTouchPoints} pts)` : "No",
+            ip: "Fetching...", location: "Fetching...", org: "Fetching...", ipSource: ""
+        });
+
+        api.getIpInfo().then(g => {
+            setPreview(prev => ({
+                ...prev,
+                ip: g.ip,
+                location: [g.city, g.region, g.country].filter(x => x && x !== "unknown" && x !== "?").join(", ") || "unknown",
+                org: g.org || "unknown",
+                ipSource: g.source || "server proxy",
+            }));
+            setIpStatus("success");
+        }).catch(() => {
+            setPreview(prev => ({
+                ...prev,
+                ip: "Could not resolve", location: "Could not resolve", org: "Could not resolve", ipSource: "All APIs failed",
+            }));
+            setIpStatus("failed");
+        });
     }, []);
 
     const normalS = sessions.filter(s => !s.isHoneypot);
@@ -57,46 +98,81 @@ export default function Dashboard({ currentUser, role, onLogout, onOpenSOC }) {
 
             <div style={{ padding: "24px 28px", maxWidth: 1280, margin: "0 auto" }}>
                 {tab === "overview" && (
-                    <div>
-                        <div className="dash-grid">
-                            {[{ l: "TOTAL LOGINS", v: sessions.length, c: "#00ff64", i: "◈" }, { l: "NORMAL SESSIONS", v: normalS.length, c: "#00cc50", i: "✓" }, { l: "SUSPICIOUS", v: susS.length, c: "#ff6644", i: "⚠" }, { l: "HONEYPOT TRIGGERS", v: hpLogs.length, c: "#ffaa00", i: "🕵" }].map(s => (
-                                <div key={s.l} style={{ background: "rgba(0,20,10,0.8)", border: "1px solid #1a3a2a", borderTop: `2px solid ${s.c}`, padding: "16px 18px" }}>
-                                    <div style={{ fontSize: 20, marginBottom: 6 }}>{s.i}</div>
-                                    <div style={{ fontSize: 30, fontWeight: "bold", color: s.c, marginBottom: 3 }}>{s.v}</div>
-                                    <div style={{ fontSize: 7, letterSpacing: "0.2em", color: "#4a7a5a" }}>{s.l}</div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20 }}>
+                        <div>
+                            <div className="dash-grid">
+                                {[{ l: "TOTAL LOGINS", v: sessions.length, c: "#00ff64", i: "◈" }, { l: "NORMAL SESSIONS", v: normalS.length, c: "#00cc50", i: "✓" }, { l: "SUSPICIOUS", v: susS.length, c: "#ff6644", i: "⚠" }, { l: "HONEYPOT TRIGGERS", v: hpLogs.length, c: "#ffaa00", i: "🕵" }].map(s => (
+                                    <div key={s.l} style={{ background: "rgba(0,20,10,0.8)", border: "1px solid #1a3a2a", borderTop: `2px solid ${s.c}`, padding: "16px 18px" }}>
+                                        <div style={{ fontSize: 20, marginBottom: 6 }}>{s.i}</div>
+                                        <div style={{ fontSize: 30, fontWeight: "bold", color: s.c, marginBottom: 3 }}>{s.v}</div>
+                                        <div style={{ fontSize: 7, letterSpacing: "0.2em", color: "#4a7a5a" }}>{s.l}</div>
+                                    </div>
+                                ))}
+                            </div>
+                            {sessions.length > 0 && (
+                                <div style={{ background: "rgba(0,20,10,0.8)", border: "1px solid #1a3a2a", padding: 20, marginBottom: 18 }}>
+                                    <div style={{ color: "#00ff64", fontSize: 8, letterSpacing: "0.2em", marginBottom: 12 }}>YOUR REAL DEVICE — LAST LOGIN</div>
+                                    <div className="info-grid">
+                                        {[
+                                            ["IP", sessions[0]?.meta.ip],
+                                            ["LOCATION", `${sessions[0]?.meta.geo?.city || '?'}, ${sessions[0]?.meta.geo?.country || '?'}`],
+                                            ["BROWSER", sessions[0]?.meta.browser],
+                                            ["OS", sessions[0]?.meta.os],
+                                            ["DEVICE", sessions[0]?.meta.device],
+                                            ["SCREEN", `${sessions[0]?.meta.screenWidth}×${sessions[0]?.meta.screenHeight}`],
+                                            ["TIMEZONE", sessions[0]?.meta.timezoneName],
+                                            ["CANVAS FP", sessions[0]?.meta.fingerprint]
+                                        ].map(([k, v]) => (
+                                            <div key={k} style={{ background: "rgba(0,0,0,0.3)", padding: "7px 9px" }}>
+                                                <div style={{ fontSize: 7, color: "#3a7a5a", letterSpacing: "0.1em", marginBottom: 2 }}>{k}</div>
+                                                <div style={{ fontSize: 9, color: "#00ff64" }}>{v || "—"}</div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 </div>
-                            ))}
+                            )}
+                            <div style={{ background: "rgba(255,42,42,0.04)", border: "1px solid rgba(255,100,68,0.2)", padding: 16 }}>
+                                <div style={{ color: "#ff6644", fontSize: 8, letterSpacing: "0.2em", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#ff2a2a", display: "inline-block", boxShadow: "0 0 7px #ff2a2a" }} />
+                                    SOC GLOBAL THREAT MAP
+                                    <span style={{ marginLeft: "auto", fontSize: 7, color: "#7a4a4a", letterSpacing: "0.1em" }}>{attacks.length} EVENTS</span>
+                                </div>
+                                {attacks.length === 0 ? (
+                                    <div style={{ padding: "32px 0", textAlign: "center", color: "#5a3a3a", fontSize: 9, letterSpacing: "0.1em", border: "1px dashed rgba(255,100,68,0.15)" }}>
+                                        NO ATTACK EVENTS RECORDED
+                                    </div>
+                                ) : (
+                                    <div style={{ height: 300, overflow: "hidden", border: "1px solid rgba(255,42,42,0.2)" }}>
+                                        <MapContainer center={[20, 0]} zoom={2} style={{ height: "100%", width: "100%", background: "#020408" }} zoomControl={false} attributionControl={false}>
+                                            <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" />
+                                            {attacks.map((a, i) => a.lat && a.lng ? (
+                                                <CircleMarker
+                                                    key={i}
+                                                    center={[a.lat, a.lng]}
+                                                    radius={Math.max(4, (a.score || 0) * 10)}
+                                                    fillOpacity={0.7}
+                                                    color={a.score > 0.8 ? "#ff2a2a" : "#fa5252"}
+                                                    weight={1}
+                                                >
+                                                    <Popup>
+                                                        <div style={{ background: "#0d1117", color: "#c9d1d9", padding: "6px 4px", fontFamily: "'Courier New',monospace", fontSize: 10, minWidth: 160 }}>
+                                                            <div style={{ color: "#fa5252", fontWeight: "bold", marginBottom: 5 }}>⚠ THREAT DETECTED</div>
+                                                            <div style={{ marginBottom: 2 }}>IP: <span style={{ color: "#ff8080" }}>{a.ip}</span></div>
+                                                            <div style={{ marginBottom: 2 }}>Country: <span style={{ color: "#c9d1d9" }}>{a.country || "Unknown"}</span></div>
+                                                            <div style={{ marginBottom: 2 }}>Score: <span style={{ color: a.score > 0.8 ? "#ff2a2a" : "#fa5252", fontWeight: "bold" }}>{a.score}</span></div>
+                                                            <div style={{ color: "#4a7a5a", fontSize: 9 }}>{new Date(a.timestamp).toLocaleString()}</div>
+                                                        </div>
+                                                    </Popup>
+                                                </CircleMarker>
+                                            ) : null)}
+                                        </MapContainer>
+                                    </div>
+                                )}
+                            </div>
+                            <LoginSessionChart />
                         </div>
-                        {sessions.length > 0 && (
-                            <div style={{ background: "rgba(0,20,10,0.8)", border: "1px solid #1a3a2a", padding: 20, marginBottom: 18 }}>
-                                <div style={{ color: "#00ff64", fontSize: 8, letterSpacing: "0.2em", marginBottom: 12 }}>YOUR REAL DEVICE — LAST LOGIN</div>
-                                <div className="info-grid">
-                                    {[
-                                        ["IP", sessions[0]?.meta.ip],
-                                        ["LOCATION", `${sessions[0]?.meta.geo?.city || '?'}, ${sessions[0]?.meta.geo?.country || '?'}`],
-                                        ["BROWSER", sessions[0]?.meta.browser],
-                                        ["OS", sessions[0]?.meta.os],
-                                        ["DEVICE", sessions[0]?.meta.device],
-                                        ["SCREEN", `${sessions[0]?.meta.screenWidth}×${sessions[0]?.meta.screenHeight}`],
-                                        ["TIMEZONE", sessions[0]?.meta.timezoneName],
-                                        ["CANVAS FP", sessions[0]?.meta.fingerprint]
-                                    ].map(([k, v]) => (
-                                        <div key={k} style={{ background: "rgba(0,0,0,0.3)", padding: "7px 9px" }}>
-                                            <div style={{ fontSize: 7, color: "#3a7a5a", letterSpacing: "0.1em", marginBottom: 2 }}>{k}</div>
-                                            <div style={{ fontSize: 9, color: "#00ff64" }}>{v || "—"}</div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        )}
-                        <div style={{ background: "rgba(255,100,68,0.05)", border: "1px solid rgba(255,100,68,0.2)", padding: 16 }}>
-                            <div style={{ color: "#ff6644", fontSize: 8, letterSpacing: "0.2em", marginBottom: 8 }}>HOW TO TRIGGER HONEYPOT</div>
-                            <div style={{ fontSize: 11, color: "#8a9a8a", lineHeight: 1.9 }}>
-                                1. Login normally 2–3 times to build your behavioral baseline<br />
-                                2. <strong style={{ color: "#ff6644" }}>LOGOUT</strong> → enable <strong style={{ color: "#ff6644" }}>SIMULATE ATTACK</strong> → login with same credentials<br />
-                                3. Isolation Forest detects anomaly (fake IP + bot signals) → silently routes to honeypot<br />
-                                4. Interact with fake admin dashboard → come back to see the attacker captured
-                            </div>
+                        <div style={{ position: "sticky", top: 24, height: "fit-content" }}>
+                             <DevicePreview previewData={preview} ipStatus={ipStatus} />
                         </div>
                     </div>
                 )}
