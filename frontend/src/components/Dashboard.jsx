@@ -54,13 +54,14 @@ export default function Dashboard({ currentUser, role, onLogout, onOpenSOC }) {
         });
     }, []);
 
-    const normalS = sessions.filter(s => !s.isHoneypot);
-    const susS = sessions.filter(s => s.isHoneypot);
+    const normalS  = sessions.filter(s => !s.isHoneypot && s.status !== 'bot-attack');
+    const susS     = sessions.filter(s =>  s.isHoneypot);
+    const botAttks = sessions.filter(s =>  s.status === 'bot-attack');
 
     return (
         <div style={{ minHeight: "100vh", background: "#050a0f", fontFamily: "'Courier New',monospace", color: "#c9d1d9" }}>
             <style>{`
-                .dash-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 24px; }
+                .dash-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 14px; margin-bottom: 24px; }
                 .info-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; }
                 .hp-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 9px; margin-bottom: 12px; }
                 .analysis-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-bottom: 18px; }
@@ -109,7 +110,7 @@ export default function Dashboard({ currentUser, role, onLogout, onOpenSOC }) {
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20 }}>
                         <div>
                             <div className="dash-grid">
-                                {[{ l: "TOTAL LOGINS", v: sessions.length, c: "#00ff64", i: "◈" }, { l: "NORMAL SESSIONS", v: normalS.length, c: "#00cc50", i: "✓" }, { l: "SUSPICIOUS", v: susS.length, c: "#ff6644", i: "⚠" }, { l: "HONEYPOT TRIGGERS", v: hpLogs.length, c: "#ffaa00", i: "🕵" }].map(s => (
+                                {[{ l: "TOTAL LOGINS", v: sessions.length, c: "#00ff64", i: "◈" }, { l: "NORMAL SESSIONS", v: normalS.length, c: "#00cc50", i: "✓" }, { l: "SUSPICIOUS", v: susS.length, c: "#ff6644", i: "⚠" }, { l: "HONEYPOT TRIGGERS", v: hpLogs.length, c: "#ffaa00", i: "🕵" }, { l: "BOT ATTACKS", v: botAttks.length, c: "#ff2244", i: "⚡" }].map(s => (
                                     <div key={s.l} style={{ background: "rgba(0,20,10,0.8)", border: "1px solid #1a3a2a", borderTop: `2px solid ${s.c}`, padding: "16px 18px" }}>
                                         <div style={{ fontSize: 20, marginBottom: 6 }}>{s.i}</div>
                                         <div style={{ fontSize: 30, fontWeight: "bold", color: s.c, marginBottom: 3 }}>{s.v}</div>
@@ -189,11 +190,16 @@ export default function Dashboard({ currentUser, role, onLogout, onOpenSOC }) {
                     <div>
                         <div style={{ color: "#4a8a6a", fontSize: 8, letterSpacing: "0.2em", marginBottom: 16 }}>ALL LOGIN SESSIONS // {sessions.length} TOTAL</div>
                         {sessions.length === 0 && <div style={{ color: "#2a5a3a", textAlign: "center", padding: 50, border: "1px dashed #1a3a2a" }}>No sessions yet. Login to create one.</div>}
-                        {sessions.map(s => (
-                            <div key={s.sessionId} onClick={() => setSelSess(selSess?.sessionId === s.sessionId ? null : s)} style={{ background: "rgba(0,20,10,0.8)", border: `1px solid ${s.isHoneypot ? "rgba(255,100,68,0.4)" : "rgba(0,255,100,0.15)"}`, borderLeft: `3px solid ${s.isHoneypot ? "#ff6644" : "#00ff64"}`, padding: "12px 16px", marginBottom: 7, cursor: "pointer" }}>
+                        {sessions.map(s => {
+                            const isBotAttack = s.status === 'bot-attack';
+                            const borderColor = isBotAttack ? "rgba(255,34,68,0.5)" : s.isHoneypot ? "rgba(255,100,68,0.4)" : "rgba(0,255,100,0.15)";
+                            const accentColor = isBotAttack ? "#ff2244" : s.isHoneypot ? "#ff6644" : "#00ff64";
+                            const badgeLabel  = isBotAttack ? "⚡ BOT ATTACK" : s.isHoneypot ? "⚠ HONEYPOT" : "✓ NORMAL";
+                            return (
+                            <div key={s.sessionId} onClick={() => setSelSess(selSess?.sessionId === s.sessionId ? null : s)} style={{ background: isBotAttack ? "rgba(40,0,10,0.85)" : "rgba(0,20,10,0.8)", border: `1px solid ${borderColor}`, borderLeft: `3px solid ${accentColor}`, padding: "12px 16px", marginBottom: 7, cursor: "pointer" }}>
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                     <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-                                        <span style={{ fontSize: 8, color: s.isHoneypot ? "#ff6644" : "#00ff64" }}>{s.isHoneypot ? "⚠ HONEYPOT" : "✓ NORMAL"}</span>
+                                        <span style={{ fontSize: 8, color: accentColor }}>{badgeLabel}</span>
                                         <span style={{ fontSize: 11, color: "#c9d1d9" }}>{s.username}</span>
                                         <span style={{ fontSize: 9, color: "#4a7a5a" }}>{s.meta.ip}</span>
                                         <span style={{ fontSize: 9, color: "#4a7a5a" }}>{s.meta.geo?.city}, {s.meta.geo?.countryCode}</span>
@@ -217,7 +223,8 @@ export default function Dashboard({ currentUser, role, onLogout, onOpenSOC }) {
                                     </div>
                                 )}
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 

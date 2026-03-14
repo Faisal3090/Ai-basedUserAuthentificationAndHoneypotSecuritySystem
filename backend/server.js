@@ -7,6 +7,7 @@ import sessionRoutes from './routes/sessions.js';
 import honeypotRoutes from './routes/honeypot.js';
 import ipRoutes from './routes/ipinfo.js';
 import securityRoutes from './routes/security.js';
+import analyticsRoutes from './routes/analytics.js';
 import User from './models/User.js';
 
 dotenv.config();
@@ -24,6 +25,7 @@ app.use('/api/sessions', sessionRoutes);
 app.use('/api/honeypot', honeypotRoutes);
 app.use('/api/ip', ipRoutes);
 app.use('/api/security', securityRoutes);
+app.use('/api/login-analytics', analyticsRoutes);
 
 // Database connection
 mongoose.connect(MONGO_URI)

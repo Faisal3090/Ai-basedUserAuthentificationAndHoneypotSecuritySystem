@@ -57,13 +57,17 @@ router.post('/login', async (req, res) => {
 
         // SECTION 5: THREE-TIER ACTION SYSTEM
         if (analysis.action === "TERMINATE") {
-            // Lock account
-            user.accountLocked = true;
-            user.lockTime = new Date();
-            user.unlockAt = new Date(Date.now() + 10 * 60000); // 10 minutes
-            await user.save();
+            const isSimulated = fullMeta.geo?.source === 'simulated';
 
-            // Log security incident
+            // Only lock real accounts — simulated attacks must not permanently block the user
+            if (!isSimulated) {
+                user.accountLocked = true;
+                user.lockTime = new Date();
+                user.unlockAt = new Date(Date.now() + 10 * 60000); // 10 minutes
+                await user.save();
+            }
+
+            // Always log security incident (real or simulated)
             await SecurityIncident.create({
                 username,
                 ip: fullMeta.ip,
@@ -94,6 +98,24 @@ router.post('/login', async (req, res) => {
                 isHoneypot: true
             });
 
+            // Log to SecurityIncident so the SOC map and analytics pick it up
+            await SecurityIncident.create({
+                username,
+                ip: fullMeta.ip,
+                country: fullMeta.geo?.country,
+                city: fullMeta.geo?.city,
+                asn: fullMeta.geo?.org,
+                isp: fullMeta.geo?.org,
+                lat: fullMeta.geo?.lat,
+                lng: fullMeta.geo?.lng,
+                browser: fullMeta.browser,
+                os: fullMeta.os,
+                device: fullMeta.device,
+                fingerprint: fullMeta.fingerprint,
+                anomalyScore: analysis.finalScore,
+                reason: analysis.reason
+            });
+
             await HoneypotLog.create({
                 sessionId,
                 username,
@@ -107,6 +129,11 @@ router.post('/login', async (req, res) => {
                 pagesVisited: [],
                 actionsPerformed: []
             });
+
+            // Simulated attacks: incident is logged but login is blocked — no dashboard access
+            if (fullMeta.geo?.source === 'simulated') {
+                return res.status(401).json({ error: "Session expired. Please try again later." });
+            }
 
             return res.json({ success: true, isHoneypot: true, sessionId, analysis });
 
